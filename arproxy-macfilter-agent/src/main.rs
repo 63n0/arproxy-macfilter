@@ -1,17 +1,17 @@
 mod config;
 mod repositories;
-use axum::routing::put_service;
-use config::Config;
+
+
 use pnet::util::MacAddr;
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{Arc, Mutex},
     time::{Duration, SystemTime},
 };
 
 #[tokio::main]
 async fn main() {
-    let mut seen_macs: HashMap<MacAddr, SystemTime> = HashMap::new();
+    let _seen_macs: HashMap<MacAddr, SystemTime> = HashMap::new();
     let config: config::Config = serde_json::from_str(
         r#"
     {
@@ -28,7 +28,7 @@ async fn main() {
 
     println!("{:?}", config);
 
-    let mut seen_mac_repo = SeenMacRepository::new();
+    let seen_mac_repo = SeenMacRepository::new();
     seen_mac_repo.put(MacAddr::zero());
     seen_mac_repo.put(MacAddr::broadcast());
 
@@ -81,7 +81,7 @@ impl SeenMacRepository {
         let mut result: Vec<SeenMac> = Vec::new();
         let mut remove_targets: Vec<MacAddr> = Vec::new();
         for (mac, seen_mac) in hm.iter() {
-            if (seen_mac.last_seen.elapsed().unwrap() > duration) {
+            if seen_mac.last_seen.elapsed().unwrap() > duration {
                 remove_targets.push(mac.clone())
             } else {
                 result.push(seen_mac.clone());

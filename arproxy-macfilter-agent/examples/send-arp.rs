@@ -3,7 +3,7 @@ use std::net::Ipv4Addr;
 use pnet::datalink::{Channel, NetworkInterface};
 use pnet::packet::arp::*;
 use pnet::packet::ethernet::*;
-use pnet::packet::{FromPacket, MutablePacket, Packet};
+use pnet::packet::{MutablePacket, Packet};
 use pnet::util::MacAddr;
 
 // https://github.com/Dineshs91/send-arp/blob/master/src/main.rs
@@ -15,7 +15,7 @@ fn send_arp_packet(
     target_ip: Ipv4Addr,
     arp_operation: ArpOperation,
 ) {
-    let (mut tx, mut rx) = match pnet::datalink::channel(&interface, Default::default()) {
+    let (mut tx, _rx) = match pnet::datalink::channel(&interface, Default::default()) {
         Ok(Channel::Ethernet(tx, rx)) => (tx, rx),
         Ok(_) => panic!("Unknown channel type"),
         Err(e) => panic!("Error happened {}", e),
