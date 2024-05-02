@@ -5,6 +5,7 @@ use repositories::{AllowedMacRepository, AllowedMacRepositoryForMemory};
 
 mod config;
 mod repositories;
+mod networks;
 
 
 #[tokio::main]
