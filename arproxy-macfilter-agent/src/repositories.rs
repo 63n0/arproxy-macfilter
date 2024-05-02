@@ -14,33 +14,33 @@ pub enum RepositoryError {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct ArpLogKey{
-    source_mac: MacAddr,
-    source_ip: Ipv4Addr,
+    sender_mac: MacAddr,
+    sender_ip: Ipv4Addr,
     // target_mac: MacAddr, ARP Request target MAC address always all-zero
     target_ip: Ipv4Addr,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArpLog {
-    source_mac: MacAddr,
-    source_ip: Ipv4Addr,
-    target_mac: MacAddr,
-    target_ip: Ipv4Addr,
-    last_seen: SystemTime,
+    pub sender_mac: MacAddr,
+    pub sender_ip: Ipv4Addr,
+    pub target_mac: MacAddr,
+    pub target_ip: Ipv4Addr,
+    pub last_seen: SystemTime,
 }
 
 impl ArpLog{
-    fn new(source_mac:MacAddr, source_ip:Ipv4Addr, target_mac:MacAddr, target_ip:Ipv4Addr) -> Self {
+    pub fn new(sender_mac:MacAddr, sender_ip:Ipv4Addr, target_mac:MacAddr, target_ip:Ipv4Addr) -> Self {
         Self {
-            source_mac, source_ip, target_ip, target_mac, 
+            sender_mac, sender_ip, target_ip, target_mac, 
             last_seen: SystemTime::now(),
         }
     }
 
     fn extract_key(&self) -> ArpLogKey {
         ArpLogKey {
-            source_mac: self.source_mac,
-            source_ip: self.source_ip,
+            sender_mac: self.sender_mac,
+            sender_ip: self.sender_ip,
             target_ip: self.target_ip, 
         }
     }
