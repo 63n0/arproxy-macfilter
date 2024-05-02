@@ -13,11 +13,37 @@ pub enum RepositoryError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct ArpLogKey{
+    source_mac: MacAddr,
+    source_ip: Ipv4Addr,
+    // target_mac: MacAddr, ARP Request target MAC address always all-zero
+    target_ip: Ipv4Addr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArpLog {
     source_mac: MacAddr,
     source_ip: Ipv4Addr,
     target_mac: MacAddr,
     target_ip: Ipv4Addr,
+    last_seen: SystemTime,
+}
+
+impl ArpLog{
+    fn new(source_mac:MacAddr, source_ip:Ipv4Addr, target_mac:MacAddr, target_ip:Ipv4Addr) -> Self {
+        Self {
+            source_mac, source_ip, target_ip, target_mac, 
+            last_seen: SystemTime::now(),
+        }
+    }
+
+    fn extract_key(&self) -> ArpLogKey {
+        ArpLogKey {
+            source_mac: self.source_mac,
+            source_ip: self.source_ip,
+            target_ip: self.target_ip, 
+        }
+    }
 }
 
 trait ArpLogRepository: Clone + std::marker::Send + std::marker::Sync + 'static {
@@ -31,7 +57,7 @@ trait ArpLogRepository: Clone + std::marker::Send + std::marker::Sync + 'static 
 
 #[derive(Debug, Clone)]
 pub struct ArpLogRepositoryForMemory {
-    store: Arc<RwLock<HashMap<ArpLog, SystemTime>>>,
+    store: Arc<RwLock<HashMap<ArpLogKey, ArpLog>>>,
 }
 impl ArpLogRepositoryForMemory {
     pub fn new() -> Self {
@@ -44,7 +70,7 @@ impl ArpLogRepositoryForMemory {
 impl ArpLogRepository for ArpLogRepositoryForMemory {
     fn put (&self, arplog:ArpLog) -> Result<(), RepositoryError> {
         if let Ok(mut store) = self.store.write() {
-            store.insert(arplog, SystemTime::now());
+            store.insert(arplog.extract_key(), arplog);
             Ok(())
         } else {
             Err(RepositoryError::SyncFailed)
@@ -55,11 +81,11 @@ impl ArpLogRepository for ArpLogRepositoryForMemory {
         if let Ok(mut store) = self.store.write() {
             let mut result = Vec::new();
             let mut removing = Vec::new();
-            for (arplog, last_seen) in store.iter() {
-                if (last_seen.elapsed().unwrap_or(duration) <= duration) {
+            for (key, arplog) in store.iter() {
+                if (arplog.last_seen.elapsed().unwrap_or(duration) <= duration) {
                     result.push(arplog.clone());
                 } else {
-                    removing.push(arplog.clone());
+                    removing.push(key.clone());
                 }
             }
             for e in removing{
@@ -74,7 +100,7 @@ impl ArpLogRepository for ArpLogRepositoryForMemory {
     fn getall_without_autoclear(&self) -> Result<Vec<ArpLog>, RepositoryError> {
         if let Ok(store) = self.store.read() {
             let mut result = Vec::new();
-            for (arplog, _) in store.iter(){
+            for (_, arplog) in store.iter(){
                 result.push(arplog.clone());
             }
             Ok(result)
