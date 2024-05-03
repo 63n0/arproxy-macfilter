@@ -7,6 +7,7 @@ use std::{
 
 use pnet::util::MacAddr;
 use thiserror::Error;
+use tracing::{debug, trace};
 
 use crate::config;
 
@@ -72,6 +73,7 @@ impl AllowedMacRepository for AllowedMacRepositoryForMemory {
     }
 
     fn put(&self, address: MacAddr) -> Result<(), RepositoryError> {
+        trace!("MAC address putted to AllowedMacRepository: {:?}", address);
         if let Ok(mut store) = self.store.write() {
             store.insert(address);
             Ok(())
@@ -123,11 +125,7 @@ pub struct ArpLog {
 }
 
 impl ArpLog {
-    pub fn new(
-        sender_mac: MacAddr,
-        sender_ip: Ipv4Addr,
-        target_ip: Ipv4Addr,
-    ) -> Self {
+    pub fn new(sender_mac: MacAddr, sender_ip: Ipv4Addr, target_ip: Ipv4Addr) -> Self {
         Self {
             sender_mac,
             sender_ip,
@@ -155,9 +153,78 @@ trait ArpLogRepository: Clone + std::marker::Send + std::marker::Sync + 'static 
 }
 
 #[derive(Debug, Clone)]
-pub struct ArpLogRepositoryForMemory {
-    store: Arc<RwLock<HashMap<ArpLogKey, ArpLog>>>,
+struct ArpLogForMemory {
+    pub sender_mac: MacAddr,
+    pub sender_ip: Ipv4Addr,
+    // pub target_mac: MacAddr, target mac address always all-zero
+    // pub target_ips: Vec<(Ipv4Addr, SystemTime)>,
+    pub target_ips: HashMap<Ipv4Addr, SystemTime>,
+    pub last_seen: SystemTime,
 }
+
+impl ArpLogForMemory {
+    fn to_arplogs_autoclear(&mut self, duration: Duration) -> Vec<ArpLog> {
+        let mut result = Vec::new();
+        let mut template = ArpLog {
+            sender_mac: self.sender_mac,
+            sender_ip: self.sender_ip,
+            target_ip: Ipv4Addr::new(0, 0, 0, 0),
+            last_seen: SystemTime::now(),
+        };
+        /* Vector Implementation
+        let mut i = 0;
+        while(i < self.target_ips.len()){
+            let (tip, time)= self.target_ips[i];
+            if(time.elapsed().unwrap() < duration){
+                template.target_ip = tip.clone();
+                template.last_seen = time.clone();
+                result.push(template.clone());
+                i += 1;
+            } else {
+                self.target_ips.remove(i);
+            }
+        }
+         */
+        // self.target_ips.remove(&Ipv4Addr::new(0, 0, 0, 0));
+        let mut removing = Vec::new();
+        for (tip, time) in self.target_ips.iter() {
+            if (time.elapsed().unwrap() < duration) {
+                template.target_ip = tip.clone();
+                template.last_seen = time.clone();
+                result.push(template.clone());
+            } else {
+                removing.push(tip.clone());
+            }
+        }
+
+        for tip in removing {
+            self.target_ips.remove(&tip);
+        }
+        result
+    }
+
+    fn to_arplog(&self) -> Vec<ArpLog> {
+        let mut result = Vec::new();
+        let mut template = ArpLog {
+            sender_mac: self.sender_mac,
+            sender_ip: self.sender_ip,
+            target_ip: Ipv4Addr::new(0, 0, 0, 0),
+            last_seen: SystemTime::now(),
+        };
+        for (tip, time) in self.target_ips.iter() {
+            template.target_ip = tip.clone();
+            template.last_seen = time.clone();
+            result.push(template.clone());
+        }
+        result
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ArpLogRepositoryForMemory {
+    store: Arc<RwLock<HashMap<MacAddr, ArpLogForMemory>>>,
+}
+
 impl ArpLogRepositoryForMemory {
     pub fn new() -> Self {
         Self {
@@ -168,8 +235,25 @@ impl ArpLogRepositoryForMemory {
 
 impl ArpLogRepository for ArpLogRepositoryForMemory {
     fn put(&self, arplog: ArpLog) -> Result<(), RepositoryError> {
+        trace!("ArpLog putted to ArpLogRepositoryForMemory: {:?}", arplog);
         if let Ok(mut store) = self.store.write() {
-            store.insert(arplog.extract_key(), arplog);
+            if let (Some(alfm)) = store.get_mut(&arplog.sender_mac) {
+                alfm.target_ips.insert(arplog.target_ip, SystemTime::now());
+                alfm.last_seen = SystemTime::now();
+            } else {
+                let mut tipmap = HashMap::new();
+                tipmap.insert(arplog.target_ip, SystemTime::now());
+                store.insert(
+                    arplog.sender_mac,
+                    ArpLogForMemory {
+                        sender_mac: arplog.sender_mac,
+                        sender_ip: arplog.sender_ip,
+                        target_ips: tipmap,
+                        last_seen: SystemTime::now(),
+                    },
+                );
+            }
+
             Ok(())
         } else {
             Err(RepositoryError::SyncFailed)
@@ -180,13 +264,15 @@ impl ArpLogRepository for ArpLogRepositoryForMemory {
         if let Ok(mut store) = self.store.write() {
             let mut result = Vec::new();
             let mut removing = Vec::new();
-            for (key, arplog) in store.iter() {
+            
+            for (smac, arplog) in store.iter_mut() {
                 if (arplog.last_seen.elapsed().unwrap_or(duration) <= duration) {
-                    result.push(arplog.clone());
+                    result.append(&mut arplog.to_arplogs_autoclear(duration));
                 } else {
-                    removing.push(key.clone());
+                    removing.push(smac.clone());
                 }
             }
+
             for e in removing {
                 store.remove(&e);
             }
@@ -200,7 +286,7 @@ impl ArpLogRepository for ArpLogRepositoryForMemory {
         if let Ok(store) = self.store.read() {
             let mut result = Vec::new();
             for (_, arplog) in store.iter() {
-                result.push(arplog.clone());
+                result.append(&mut arplog.to_arplog());
             }
             Ok(result)
         } else {
