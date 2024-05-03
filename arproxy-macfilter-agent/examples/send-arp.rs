@@ -67,7 +67,6 @@ fn main() {
     );
 }
 
-
 // use pnet::util::MacAddr;
 // use std::{
 //     collections::HashMap,
