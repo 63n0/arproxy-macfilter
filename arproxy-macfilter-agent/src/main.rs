@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use pnet::util::MacAddr;
 use repositories::{AllowedMacRepository, AllowedMacRepositoryForMemory};
+use tracing::debug;
 
 mod config;
 mod networks;
@@ -9,6 +10,7 @@ mod repositories;
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
     // let config = config::load_config(filepath);
     let mut allowed_mac_repo = repositories::AllowedMacRepositoryForMemory::new();
     let mut arplog_repo = repositories::ArpLogRepositoryForMemory::new();
