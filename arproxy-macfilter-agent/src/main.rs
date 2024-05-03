@@ -4,16 +4,17 @@ use pnet::util::MacAddr;
 use repositories::{AllowedMacRepository, AllowedMacRepositoryForMemory};
 
 mod config;
-mod repositories;
 mod networks;
-
+mod repositories;
 
 #[tokio::main]
 async fn main() {
     // let config = config::load_config(filepath);
     let mut allowed_mac_repo = repositories::AllowedMacRepositoryForMemory::new();
     let mut arplog_repo = repositories::ArpLogRepositoryForMemory::new();
-    allowed_mac_repo.put(MacAddr::from_str("02:00:00:00:00:01").unwrap()).unwrap();
+    allowed_mac_repo
+        .put(MacAddr::from_str("02:00:00:00:00:01").unwrap())
+        .unwrap();
     allowed_mac_repo.put(MacAddr::zero()).unwrap();
     allowed_mac_repo.put(MacAddr::broadcast()).unwrap();
     allowed_mac_repo.put(MacAddr::broadcast()).unwrap();
