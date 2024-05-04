@@ -1,6 +1,6 @@
 use std::thread;
 
-use pnet::datalink::Channel;
+
 use repositories::{ArpLogRepository, ConfigRepository};
 use tracing::{debug, info, trace};
 

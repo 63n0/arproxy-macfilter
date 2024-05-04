@@ -1,5 +1,4 @@
 use std::{
-    clone, thread,
     time::{Duration, SystemTime},
 };
 
@@ -12,7 +11,7 @@ use pnet::{
     },
     util::MacAddr,
 };
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace};
 
 use crate::repositories::{AllowedMacRepository, ArpLog, ArpLogRepository, ConfigRepository};
 
@@ -79,7 +78,7 @@ where
         loop {
             match rx.next() {
                 Ok(pkt) => self.handle_frame(pkt).unwrap(),
-                Err(e) => panic!("Failed"),
+                Err(_e) => panic!("Failed"),
             };
         }
     }
@@ -249,7 +248,7 @@ where
     }
 
     pub fn send_spoofing_frame(&self, arplog: ArpLog) {
-        let (mut tx, rx) = match pnet::datalink::channel(&self.interface, Default::default()) {
+        let (mut tx, _rx) = match pnet::datalink::channel(&self.interface, Default::default()) {
             Ok(Channel::Ethernet(tx, rx)) => (tx, rx),
             Ok(_) => panic!("Unknown channel type"),
             Err(e) => panic!("Error happened {}", e),
