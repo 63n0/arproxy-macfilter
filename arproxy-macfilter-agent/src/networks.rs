@@ -1,20 +1,12 @@
-use std::{net::Ipv4Addr, time::SystemTime};
+use std::time::SystemTime;
 
-use axum::extract::State;
-use pnet::{
-    packet::{
-        arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPacket},
-        ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket},
-        Packet,
-    },
-    util::MacAddr,
+use pnet::packet::{
+    arp::{ArpOperations, ArpPacket},
+    ethernet::{EtherTypes, EthernetPacket},
+    Packet,
 };
-use tracing::debug;
 
-use crate::repositories::{
-    AllowedMacRepository, AllowedMacRepositoryForMemory, ArpLog, ArpLogRepository,
-    ArpLogRepositoryForMemory, ConfigRepository, ConfigRepositoryForMemory,
-};
+use crate::repositories::{AllowedMacRepository, ArpLog, ArpLogRepository, ConfigRepository};
 
 #[derive(Debug)]
 pub enum NetworkError {
@@ -79,8 +71,8 @@ where
                 last_seen: SystemTime::now(),
             };
             let proxy_config = self.config_repo.get_config().arp_proxy_config;
-            if (proxy_config.proxy_allowed_macs
-                || !self.allowedmac_repo.contains(&arplog.sender_mac).unwrap())
+            if proxy_config.proxy_allowed_macs
+                || !self.allowedmac_repo.contains(&arplog.sender_mac).unwrap()
             {
                 self.arplog_repo.put(arplog);
                 // MUST implement fake arp reply

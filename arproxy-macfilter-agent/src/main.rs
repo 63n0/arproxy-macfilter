@@ -1,10 +1,6 @@
-use std::{env, str::FromStr};
-
-use pnet::{datalink::Channel, util::MacAddr};
-use repositories::{
-    AllowedMacRepository, AllowedMacRepositoryForMemory, ArpLogRepository, ConfigRepository,
-};
-use tracing::{debug, info, trace};
+use pnet::datalink::Channel;
+use repositories::{ArpLogRepository, ConfigRepository};
+use tracing::{info, trace};
 
 mod config;
 mod networks;
@@ -40,7 +36,7 @@ async fn main() {
         .find(|iface| iface.name == iface_name)
         .expect("[Error] Interface name not found");
 
-    let (mut tx, mut rx) = match pnet::datalink::channel(&interface, Default::default()) {
+    let (tx, mut rx) = match pnet::datalink::channel(&interface, Default::default()) {
         Ok(Channel::Ethernet(tx, rx)) => (tx, rx),
         Ok(_) => panic!("Unknown channel type"),
         Err(e) => panic!("Error happened {}", e),
