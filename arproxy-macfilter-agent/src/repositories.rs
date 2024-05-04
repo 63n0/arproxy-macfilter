@@ -130,6 +130,7 @@ impl ArpLog {
 
 pub trait ArpLogRepository: Clone + std::marker::Send + std::marker::Sync + 'static {
     /// ArpLogを挿入またはlast_seenを更新する
+    ///
     fn put(&self, arplog: ArpLog) -> Result<(), RepositoryError>;
     /// 全てのArpLogを取得し、同時にdurationを超過したものは削除する
     fn getall_autoclear(&self, duration: Duration) -> Result<Vec<ArpLog>, RepositoryError>;
@@ -222,18 +223,18 @@ impl ArpLogRepository for ArpLogRepositoryForMemory {
         trace!("ArpLog putted to ArpLogRepositoryForMemory: {:?}", arplog);
         if let Ok(mut store) = self.store.write() {
             if let Some(alfm) = store.get_mut(&arplog.sender_mac) {
-                alfm.target_ips.insert(arplog.target_ip, SystemTime::now());
-                alfm.last_seen = SystemTime::now();
+                alfm.target_ips.insert(arplog.target_ip, arplog.last_seen);
+                alfm.last_seen = arplog.last_seen;
             } else {
                 let mut tipmap = HashMap::new();
-                tipmap.insert(arplog.target_ip, SystemTime::now());
+                tipmap.insert(arplog.target_ip, arplog.last_seen);
                 store.insert(
                     arplog.sender_mac,
                     ArpLogForMemory {
                         sender_mac: arplog.sender_mac,
                         sender_ip: arplog.sender_ip,
                         target_ips: tipmap,
-                        last_seen: SystemTime::now(),
+                        last_seen: arplog.last_seen,
                     },
                 );
             }
