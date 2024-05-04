@@ -3,7 +3,7 @@ use std::{fs::File, io::BufReader};
 use serde::{Deserialize, Serialize};
 
 /// 設定ファイル/設定情報の構造体
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// Network interface name
     pub interface: String,
@@ -11,7 +11,7 @@ pub struct Config {
 }
 
 /// 設定ファイルの一部・プロキシの挙動について定義する
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArpProxyConfig {
     /// 許可されたMACアドレスにも応答する場合 true
     pub proxy_allowed_macs: bool,

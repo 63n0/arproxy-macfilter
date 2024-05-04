@@ -1,29 +1,98 @@
-use std::net::Ipv4Addr;
+use std::{net::Ipv4Addr, time::SystemTime};
 
+use axum::extract::State;
 use pnet::{
     packet::{
-        arp::{ArpHardwareTypes, ArpPacket, MutableArpPacket},
+        arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPacket},
         ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket},
         Packet,
     },
     util::MacAddr,
 };
+use tracing::debug;
 
-use crate::repositories::ArpLog;
+use crate::repositories::{
+    AllowedMacRepository, AllowedMacRepositoryForMemory, ArpLog, ArpLogRepository,
+    ArpLogRepositoryForMemory, ConfigRepository, ConfigRepositoryForMemory,
+};
 
-pub async fn proxy_macfilter() {}
+#[derive(Debug)]
+pub enum NetworkError {
+    UnitSizeError(String),
+}
 
-fn handle_ethernet(frame: &EthernetPacket) {
-    if (frame.get_ethertype() == EtherTypes::Arp) {
-        match ArpPacket::new(&frame.payload()) {
-            Some(arpframe) => handle_arp(&arpframe),
-            None => (),
+pub struct PacketHandler<C, M, A>
+where
+    C: ConfigRepository,
+    M: AllowedMacRepository,
+    A: ArpLogRepository,
+{
+    config_repo: C,
+    allowedmac_repo: M,
+    arplog_repo: A,
+}
+
+impl<C, M, A> PacketHandler<C, M, A>
+where
+    C: ConfigRepository,
+    M: AllowedMacRepository,
+    A: ArpLogRepository,
+{
+    pub fn new(config_repo: C, allowedmac_repo: M, arplog_repo: A) -> Self {
+        Self {
+            config_repo,
+            allowedmac_repo,
+            arplog_repo,
+        }
+    }
+
+    pub fn handle_frame(&self, frame: &[u8]) -> Result<(), NetworkError> {
+        if let Some(ethernet_frame) = EthernetPacket::new(frame) {
+            self.handle_ethernet(&ethernet_frame)
+        } else {
+            Err(NetworkError::UnitSizeError(
+                "less than minimal Ethernet frame size".to_string(),
+            ))
+        }
+    }
+
+    fn handle_ethernet(&self, frame: &EthernetPacket) -> Result<(), NetworkError> {
+        if frame.get_ethertype() == EtherTypes::Arp {
+            if let Some(arp_frame) = ArpPacket::new(frame.payload()) {
+                self.handle_arp(&arp_frame)
+            } else {
+                Err(NetworkError::UnitSizeError(
+                    "less than minimal ARP frame size".to_string(),
+                ))
+            }
+        } else {
+            Ok(())
+        }
+    }
+
+    fn handle_arp(&self, frame: &ArpPacket) -> Result<(), NetworkError> {
+        if frame.get_operation() == ArpOperations::Request {
+            let arplog = ArpLog {
+                sender_mac: frame.get_sender_hw_addr(),
+                sender_ip: frame.get_sender_proto_addr(),
+                target_ip: frame.get_target_proto_addr(),
+                last_seen: SystemTime::now(),
+            };
+            let proxy_config = self.config_repo.get_config().arp_proxy_config;
+            if (proxy_config.proxy_allowed_macs
+                || !self.allowedmac_repo.contains(&arplog.sender_mac).unwrap())
+            {
+                self.arplog_repo.put(arplog);
+                // MUST implement fake arp reply
+            }
+            Ok(())
+        } else {
+            Ok(())
         }
     }
 }
 
-fn handle_arp(frame: &ArpPacket) {}
-
+/*
 // 本当はEthernetPacketを返したいが、これがバッファを内部的に参照しているためうまくいかない。rustは参照を返せない。
 /// ArpLogに対応してARPプロキシのために送信されるARPフレームを生成する
 fn construct_proxyarp_frames(arplog: ArpLog, sender_mac: MacAddr) -> ([u8; 42], [u8; 42]) {
@@ -72,3 +141,5 @@ fn construct_proxyarp_frames(arplog: ArpLog, sender_mac: MacAddr) -> ([u8; 42], 
 
     (ethernet_buffer1, ethernet_buffer2)
 }
+
+ */
