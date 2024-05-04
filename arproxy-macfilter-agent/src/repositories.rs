@@ -9,36 +9,37 @@ use pnet::util::MacAddr;
 use thiserror::Error;
 use tracing::{debug, trace};
 
-use crate::config;
+use crate::config::{self, ArpProxyConfig};
 
-pub struct AppState<C: ConfigRepository, M: AllowedMacRepository, A: ArpLogRepository> {
-    pub config_repo: C,
-    pub allowedmac_repo: M,
-    pub arplog_repo: A,
+pub trait ConfigRepository: Clone + std::marker::Send + std::marker::Sync + 'static {
+    fn get_config(&self) -> config::Config;
 }
 
-pub trait ConfigRepository: Clone + std::marker::Send + std::marker::Sync + 'static {}
-
 #[derive(Clone, Debug)]
-struct ConfigRepositoryForMemory {
+pub struct ConfigRepositoryForMemory {
     store: Arc<RwLock<config::Config>>,
 }
 
 impl ConfigRepositoryForMemory {
-    fn new(config: config::Config) -> Self {
+    pub fn new(config: config::Config) -> Self {
         Self {
             store: Arc::new(RwLock::new(config)),
         }
     }
 }
 
-impl ConfigRepository for ConfigRepositoryForMemory {}
+impl ConfigRepository for ConfigRepositoryForMemory {
+    // うまく排他制御できてなさそうである。
+    fn get_config(&self) -> config::Config {
+        self.store.read().unwrap().clone()
+    }
+}
 
 pub trait AllowedMacRepository: Clone + std::marker::Send + std::marker::Sync + 'static {
-    fn contains(&self, address: MacAddr) -> Result<bool, RepositoryError>;
+    fn contains(&self, address: &MacAddr) -> Result<bool, RepositoryError>;
     fn getall(&self) -> Result<Vec<MacAddr>, RepositoryError>;
     fn put(&self, address: MacAddr) -> Result<(), RepositoryError>;
-    fn remove(&self, address: MacAddr) -> Result<(), RepositoryError>;
+    fn remove(&self, address: &MacAddr) -> Result<(), RepositoryError>;
     fn clear(&self) -> Result<(), RepositoryError>;
 }
 
@@ -56,7 +57,7 @@ impl AllowedMacRepositoryForMemory {
 }
 
 impl AllowedMacRepository for AllowedMacRepositoryForMemory {
-    fn contains(&self, address: MacAddr) -> Result<bool, RepositoryError> {
+    fn contains(&self, address: &MacAddr) -> Result<bool, RepositoryError> {
         if let Ok(store) = self.store.read() {
             Ok(store.contains(&address))
         } else {
@@ -82,7 +83,7 @@ impl AllowedMacRepository for AllowedMacRepositoryForMemory {
         }
     }
 
-    fn remove(&self, address: MacAddr) -> Result<(), RepositoryError> {
+    fn remove(&self, address: &MacAddr) -> Result<(), RepositoryError> {
         if let Ok(mut store) = self.store.write() {
             store.remove(&address);
             Ok(())
@@ -107,14 +108,6 @@ pub enum RepositoryError {
     SyncFailed,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct ArpLogKey {
-    sender_mac: MacAddr,
-    sender_ip: Ipv4Addr,
-    // target_mac: MacAddr, ARP Request target MAC address always all-zero
-    target_ip: Ipv4Addr,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArpLog {
     pub sender_mac: MacAddr,
@@ -133,17 +126,9 @@ impl ArpLog {
             last_seen: SystemTime::now(),
         }
     }
-
-    fn extract_key(&self) -> ArpLogKey {
-        ArpLogKey {
-            sender_mac: self.sender_mac,
-            sender_ip: self.sender_ip,
-            target_ip: self.target_ip,
-        }
-    }
 }
 
-trait ArpLogRepository: Clone + std::marker::Send + std::marker::Sync + 'static {
+pub trait ArpLogRepository: Clone + std::marker::Send + std::marker::Sync + 'static {
     /// ArpLogを挿入またはlast_seenを更新する
     fn put(&self, arplog: ArpLog) -> Result<(), RepositoryError>;
     /// 全てのArpLogを取得し、同時にdurationを超過したものは削除する
@@ -185,7 +170,6 @@ impl ArpLogForMemory {
             }
         }
          */
-        // self.target_ips.remove(&Ipv4Addr::new(0, 0, 0, 0));
         let mut removing = Vec::new();
         for (tip, time) in self.target_ips.iter() {
             if (time.elapsed().unwrap() < duration) {
@@ -264,7 +248,7 @@ impl ArpLogRepository for ArpLogRepositoryForMemory {
         if let Ok(mut store) = self.store.write() {
             let mut result = Vec::new();
             let mut removing = Vec::new();
-            
+
             for (smac, arplog) in store.iter_mut() {
                 if (arplog.last_seen.elapsed().unwrap_or(duration) <= duration) {
                     result.append(&mut arplog.to_arplogs_autoclear(duration));
