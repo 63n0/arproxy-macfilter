@@ -7,9 +7,9 @@ use std::{
 
 use pnet::util::MacAddr;
 use thiserror::Error;
-use tracing::{debug, trace};
+use tracing::trace;
 
-use crate::config::{self, ArpProxyConfig};
+use crate::config::{self};
 
 pub trait ConfigRepository: Clone + std::marker::Send + std::marker::Sync + 'static {
     fn get_config(&self) -> config::Config;
@@ -172,7 +172,7 @@ impl ArpLogForMemory {
          */
         let mut removing = Vec::new();
         for (tip, time) in self.target_ips.iter() {
-            if (time.elapsed().unwrap() < duration) {
+            if time.elapsed().unwrap() < duration {
                 template.target_ip = tip.clone();
                 template.last_seen = time.clone();
                 result.push(template.clone());
@@ -221,7 +221,7 @@ impl ArpLogRepository for ArpLogRepositoryForMemory {
     fn put(&self, arplog: ArpLog) -> Result<(), RepositoryError> {
         trace!("ArpLog putted to ArpLogRepositoryForMemory: {:?}", arplog);
         if let Ok(mut store) = self.store.write() {
-            if let (Some(alfm)) = store.get_mut(&arplog.sender_mac) {
+            if let Some(alfm) = store.get_mut(&arplog.sender_mac) {
                 alfm.target_ips.insert(arplog.target_ip, SystemTime::now());
                 alfm.last_seen = SystemTime::now();
             } else {
@@ -250,7 +250,7 @@ impl ArpLogRepository for ArpLogRepositoryForMemory {
             let mut removing = Vec::new();
 
             for (smac, arplog) in store.iter_mut() {
-                if (arplog.last_seen.elapsed().unwrap_or(duration) <= duration) {
+                if arplog.last_seen.elapsed().unwrap_or(duration) <= duration {
                     result.append(&mut arplog.to_arplogs_autoclear(duration));
                 } else {
                     removing.push(smac.clone());
