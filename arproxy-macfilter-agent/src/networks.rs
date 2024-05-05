@@ -1,6 +1,4 @@
-use std::{
-    time::{Duration, SystemTime},
-};
+use std::time::{Duration, SystemTime};
 
 use pnet::{
     datalink::{Channel, DataLinkReceiver, DataLinkSender, NetworkInterface},
@@ -13,7 +11,10 @@ use pnet::{
 };
 use tracing::{debug, trace};
 
-use crate::repositories::{allowed_mac::AllowedMacRepository, arplog::ArpLog, arplog::ArpLogRepository, config::ConfigRepository};
+use crate::repositories::{
+    allowed_mac::AllowedMacRepository, arplog::ArpLog, arplog::ArpLogRepository,
+    config::ConfigRepository,
+};
 
 #[derive(Debug)]
 pub enum NetworkError {

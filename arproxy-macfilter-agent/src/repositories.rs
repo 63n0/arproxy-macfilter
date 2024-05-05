@@ -1,6 +1,6 @@
-pub mod config;
-pub mod arplog;
 pub mod allowed_mac;
+pub mod arplog;
+pub mod config;
 pub mod session;
 
 #[derive(Debug, thiserror::Error)]
