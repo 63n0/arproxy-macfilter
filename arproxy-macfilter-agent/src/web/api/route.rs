@@ -1,28 +1,34 @@
 use std::sync::Arc;
 
-use axum::{routing::{delete, get, post}, Extension, Router};
+use axum::{
+    routing::{delete, get, post},
+    Extension, Router,
+};
 
-use arproxy_macfilter_agent::repositories::{config::ConfigRepository, arplog::ArpLogRepository, allowed_mac::AllowedMacRepository};
+use arproxy_macfilter_agent::repositories::{
+    allowed_mac::AllowedMacRepository, arplog::ArpLogRepository, config::ConfigRepository,
+};
 
 use super::handlers;
 
 pub fn create_router<C, M, A>(
-    config_repo:Arc<C>, 
-    allowedmac_repo: Arc<M>, 
-    arplog_repo: Arc<A>,
+    _config_repo: Arc<C>,
+    allowedmac_repo: Arc<M>,
+    _arplog_repo: Arc<A>,
 ) -> Router
 where
     C: ConfigRepository,
     M: AllowedMacRepository,
     A: ArpLogRepository,
 {
-    let app = Router::new()
-        .nest("/allowed-mac", create_allowedmac_router(allowedmac_repo));
+    let app = Router::new().nest("/allowed-mac", create_allowedmac_router(allowedmac_repo));
     app
 }
 
-fn create_allowedmac_router<M>(allowedmac_repo: Arc<M>, ) -> Router 
-where M: AllowedMacRepository {
+fn create_allowedmac_router<M>(allowedmac_repo: Arc<M>) -> Router
+where
+    M: AllowedMacRepository,
+{
     let app = Router::new()
         .route("/all", get(handlers::all_allowedmac::<M>))
         .route("/add", post(handlers::add_allowedmac::<M>))
@@ -33,17 +39,25 @@ where M: AllowedMacRepository {
 
 #[cfg(test)]
 mod test {
-    use std::{str::FromStr, sync::Arc, time::Duration};
+    use std::{str::FromStr, sync::Arc};
 
-    use arproxy_macfilter_agent::repositories::allowed_mac::{AllowedMacRepository, AllowedMacRepositoryForMemory};
-    use axum::{body::{Body, Bytes}, http::{self, Method, Request, StatusCode}, Router};
+    use arproxy_macfilter_agent::repositories::allowed_mac::{
+        AllowedMacRepository, AllowedMacRepositoryForMemory,
+    };
+    use axum::{
+        body::{Body, Bytes},
+        http::{self, Method, Request, StatusCode},
+        Router,
+    };
     use http_body_util::BodyExt;
     use pnet::util::MacAddr;
     use tower::ServiceExt;
-    use tracing::{debug, trace};
+    use tracing::trace;
     use validator::Validate;
 
-    use crate::web::api::schema::{AllowedMacDeleteSchema, AllowedMacPostResponseSchema, AllowedMacPostSchema};
+    use crate::web::api::schema::{
+        AllowedMacDeleteSchema, AllowedMacPostResponseSchema, AllowedMacPostSchema,
+    };
 
     use super::create_allowedmac_router;
 
@@ -55,7 +69,11 @@ mod test {
         repo
     }
 
-    async fn request_oneshot_empty(app:Router, method:http::Method, path:&str) -> (StatusCode, Bytes) {
+    async fn request_oneshot_empty(
+        app: Router,
+        method: http::Method,
+        path: &str,
+    ) -> (StatusCode, Bytes) {
         let req = Request::builder()
             .method(method)
             .uri(path)
@@ -68,7 +86,12 @@ mod test {
         (status, body)
     }
 
-    async fn request_oneshot_json(app:Router, method:http::Method, path:&str, body:Vec<u8>) -> (StatusCode, Bytes) {
+    async fn request_oneshot_json(
+        app: Router,
+        method: http::Method,
+        path: &str,
+        body: Vec<u8>,
+    ) -> (StatusCode, Bytes) {
         trace!("Request body: {:?}", std::str::from_utf8(&body));
         let req = Request::builder()
             .method(method)
@@ -86,14 +109,17 @@ mod test {
 
     #[tracing_test::traced_test]
     #[tokio::test]
-    async fn should_getall_allowedmac(){
+    async fn should_getall_allowedmac() {
         let repo = create_dummy_allowedmac_repo();
         let app = create_allowedmac_router(Arc::new(repo));
         // ステータスコード・レスポンスボディが正当か
         let (status, body) = request_oneshot_empty(app, http::Method::GET, "/all").await;
         assert_eq!(status, StatusCode::OK);
         let maddrs_str = serde_json::from_slice::<Vec<String>>(&body).unwrap();
-        let maddrs: Vec<MacAddr> = maddrs_str.iter().map(|m| MacAddr::from_str(m).unwrap()).collect();
+        let maddrs: Vec<MacAddr> = maddrs_str
+            .iter()
+            .map(|m| MacAddr::from_str(m).unwrap())
+            .collect();
         assert_eq!(maddrs.len(), 3);
         assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 1)));
         assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 2)));
@@ -102,15 +128,16 @@ mod test {
 
     #[tracing_test::traced_test]
     #[tokio::test]
-    async fn should_add_allowedmac(){
+    async fn should_add_allowedmac() {
         let repo = create_dummy_allowedmac_repo();
         let app = create_allowedmac_router(Arc::new(repo.clone()));
         let req_body = AllowedMacPostSchema {
             mac_address: MacAddr::new(2, 0, 0, 0, 0xf, 5).to_string(),
         };
-        let req_body_raw =  serde_json::to_vec(&req_body).unwrap();
+        let req_body_raw = serde_json::to_vec(&req_body).unwrap();
         // ステータスコード・レスポンスボディが正当か
-        let (status, body) = request_oneshot_json(app, http::Method::POST, "/add", req_body_raw).await;
+        let (status, body) =
+            request_oneshot_json(app, http::Method::POST, "/add", req_body_raw).await;
         assert_eq!(status, StatusCode::CREATED);
         let res_body = serde_json::from_slice::<AllowedMacPostResponseSchema>(&body).unwrap();
         res_body.validate().expect("Unexpected response");
@@ -126,7 +153,7 @@ mod test {
 
     #[tracing_test::traced_test]
     #[tokio::test]
-    async fn should_delete_allowedmac(){
+    async fn should_delete_allowedmac() {
         let repo = create_dummy_allowedmac_repo();
         let app = create_allowedmac_router(Arc::new(repo.clone()));
         let req_body = AllowedMacDeleteSchema {
@@ -143,6 +170,4 @@ mod test {
         assert!(!maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 2)));
         assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 3)));
     }
-
-
 }

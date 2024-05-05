@@ -1,9 +1,9 @@
 use std::thread;
 
-mod web;
 mod config;
 mod networks;
 mod repositories;
+mod web;
 
 use repositories::{arplog::ArpLogRepository, config::ConfigRepository};
 use tracing::{debug, info, trace};

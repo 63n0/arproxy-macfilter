@@ -75,7 +75,6 @@ impl AllowedMacRepository for AllowedMacRepositoryForMemory {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use pnet::util::MacAddr;
@@ -83,7 +82,7 @@ mod test {
     use super::{AllowedMacRepository, AllowedMacRepositoryForMemory};
 
     #[test]
-    fn allowedmac_repo_crd_scenario(){
+    fn allowedmac_repo_crd_scenario() {
         let addrs = vec![
             MacAddr::new(0x02, 0x00, 0x00, 0x00, 0x0f, 0x01),
             MacAddr::new(0x02, 0x00, 0x00, 0x00, 0x0f, 0x02),
