@@ -1,3 +1,3 @@
-mod schema;
-pub(super) mod route;
 mod handlers;
+pub(super) mod route;
+mod schema;
