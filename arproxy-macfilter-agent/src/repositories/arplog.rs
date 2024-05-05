@@ -1,5 +1,10 @@
-use std::{collections::HashMap, sync::{Arc, RwLock}, net::Ipv4Addr, time::{SystemTime, Duration}};
 use pnet::util::MacAddr;
+use std::{
+    collections::HashMap,
+    net::Ipv4Addr,
+    sync::{Arc, RwLock},
+    time::{Duration, SystemTime},
+};
 use tracing::trace;
 
 use super::RepositoryError;

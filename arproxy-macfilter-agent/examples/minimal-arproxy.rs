@@ -1,8 +1,12 @@
-use std::thread;
-use arproxy_macfilter_agent::{config, networks, repositories::{self, allowed_mac::AllowedMacRepository, arplog::ArpLogRepository, config::ConfigRepository}};
+use arproxy_macfilter_agent::{
+    config, networks,
+    repositories::{
+        self, allowed_mac::AllowedMacRepository, arplog::ArpLogRepository, config::ConfigRepository,
+    },
+};
 use pnet::util::MacAddr;
+use std::thread;
 use tracing::{debug, info, trace};
-
 
 #[tokio::main]
 async fn main() {

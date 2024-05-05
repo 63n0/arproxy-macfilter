@@ -1,10 +1,11 @@
-
-use std::{collections::HashSet, sync::{Arc, RwLock}};
 use pnet::util::MacAddr;
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock},
+};
 use tracing::debug;
 
 use super::RepositoryError;
-
 
 pub trait AllowedMacRepository: Clone + std::marker::Send + std::marker::Sync + 'static {
     fn contains(&self, address: &MacAddr) -> Result<bool, RepositoryError>;
