@@ -1,12 +1,8 @@
 use std::thread;
-
-mod config;
-mod networks;
-mod repositories;
-mod api;
-
-use repositories::{arplog::ArpLogRepository, config::ConfigRepository};
+use arproxy_macfilter_agent::{config, networks, repositories::{self, allowed_mac::AllowedMacRepository, arplog::ArpLogRepository, config::ConfigRepository}};
+use pnet::util::MacAddr;
 use tracing::{debug, info, trace};
+
 
 #[tokio::main]
 async fn main() {
@@ -23,6 +19,7 @@ async fn main() {
     let config: config::Config = serde_json::from_str(&config_str).unwrap();
     trace!("{:?}", config);
     let allowedmac_repo = repositories::allowed_mac::AllowedMacRepositoryForMemory::new();
+    allowedmac_repo.put(MacAddr::new(2, 0, 0, 0, 0, 1)).unwrap();
     let arplog_repo = repositories::arplog::ArpLogRepositoryForMemory::new();
     let config_repo = repositories::config::ConfigRepositoryForMemory::new(config);
 
