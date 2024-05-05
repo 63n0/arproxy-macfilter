@@ -1,27 +1,29 @@
-!! 現在開発中 !!
+**!! 現在開発中、まだ動作しません !!**
 
 令和元年度ネットワークスペシャリスト試験の午後１問３の「通信制限装置」に着想を得て作ったプログラムです。
-
-ARPスプーフィングの原理を用いてEthernetフレームを中継し、送信元MACアドレスが登録済みで開ければフレームをドロップします。
-
-## 依存関係
-- Linux
-- sysctlパラメータ net.ipv4.ip_forward の有効化
-- nftablesのインストール
-その他にも細かな依存関係があるかもしれません。テストには以下の環境を使用しました。
-```sh
-$ uname -srvpio
-Linux 6.5.0-28-generic #29~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Apr  4 14:39:20 UTC 2 x86_64 x86_64 GNU/Linux
-$ lsmod | grep nf_tables
-nf_tables             372736  5
-libcrc32c              12288  1 nf_tables
-nfnetlink              20480  3 nfnetlink_queue,nf_tables,nfnetlink_log
-$ sysctl net.ipv4.ip_forward
-net.ipv4.ip_forward = 1
-$ sysctl net.ipv4.conf.all.send_redirects
-net.ipv4.conf.all.send_redirects = 0
-```
+ARPスプーフィングの原理を用いてEthernetフレームを中継し、送信元MACアドレスが登録済みであればプロキシを行いません。
+ルーティング機能が無効な端末上で実行すれば自分宛てでないIPパケットはOS側でドロップしてくれるのでフィルタリングとして機能します。
 
 ## 機能
-- ARPスプーフィングの機能
-- nftables
+- ARPプロキシの機能
+- 特定のMACアドレスをARPプロキシの対象から外す機能
+
+## 設定方法
+JSON形式の設定ファルを使用して設定を行います。コマンドライン引数で設定ファイルを指定する方式で実装予定です。
+### システムの設定
+またこの通信制限装置の使用には前提条件としてシステムの設定を一部変更する必要があります。
+#### IPフォワーディングの無効化
+フィルタとして利用するにはIPフォワーディング機能を無効化する必要があります。カーネルパラメータを変更する方法が一番簡単です。
+```bash
+# システム全体で無効化する場合
+sudo sysctl -w net.ipv4.ip_forward=0
+# 特定のインターフェースのみ無効化する場合
+sudo sysctl -w net.ipv4.conf.eth0.forwarding=0
+```
+なにか問題があって無効化できなかったら、iptablesやnftablesでPREROUTINGを全てDROPすると機能します。
+#### その他カーネルパラメータの設定
+動作に必須ではないと思いますがこのあたりの設定を行っておくと安定すると思います。
+```bash
+# ICMPリダイレクトを無効化
+sudo sysctl -w net.ipv4.conf.all.send_redirects=0
+```
