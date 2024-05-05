@@ -13,7 +13,7 @@ use pnet::{
 };
 use tracing::{debug, trace};
 
-use crate::repositories::{AllowedMacRepository, ArpLog, ArpLogRepository, ConfigRepository};
+use crate::repositories::{allowed_mac::AllowedMacRepository, arplog::ArpLog, arplog::ArpLogRepository, config::ConfigRepository};
 
 #[derive(Debug)]
 pub enum NetworkError {
