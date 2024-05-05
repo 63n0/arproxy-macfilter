@@ -1,6 +1,6 @@
 use std::thread;
 
-mod api;
+mod web;
 mod config;
 mod networks;
 mod repositories;

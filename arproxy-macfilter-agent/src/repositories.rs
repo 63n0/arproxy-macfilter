@@ -1,7 +1,6 @@
 pub mod allowed_mac;
 pub mod arplog;
 pub mod config;
-pub mod session;
 
 #[derive(Debug, PartialEq, Eq,thiserror::Error)]
 pub enum RepositoryError {
