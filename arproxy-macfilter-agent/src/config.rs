@@ -1,14 +1,16 @@
 use std::{fs::File, io::BufReader, net::Ipv4Addr, path::PathBuf};
 
-use serde::{Deserialize, Serialize};
 use clap::Parser;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    pub config_path:PathBuf,
+    /// Path of configuration file (REQUIRED)
+    pub config_path: PathBuf,
+    /// Accept insecure configuration
     #[arg(long, default_value_t = false)]
-    pub insecure:bool,
+    pub insecure: bool,
 }
 
 /// 設定ファイル/設定情報の構造体
@@ -41,7 +43,7 @@ pub struct AdministrationConfig {
     pub listen_port: u16,
 }
 
-pub fn load_config(filepath: PathBuf) -> Result<Config, anyhow::Error> {
+pub fn load_config(filepath: &PathBuf) -> Result<Config, anyhow::Error> {
     let file = File::open(filepath)?;
     let reader = BufReader::new(file);
     let config = serde_json::from_reader(reader)?;

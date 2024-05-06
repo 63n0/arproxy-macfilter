@@ -2,8 +2,8 @@
     "interface":"lo",
     "arp_proxy": {
         "proxy_allowed_macs": false,
-        "arp_reply_interval": 1,
-        "arp_reply_duration": 10
+        "arp_reply_interval": 5,
+        "arp_reply_duration": 60
     },
     "administration": {
         "enable_api": true,
