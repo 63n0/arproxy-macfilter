@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, RwLock},
     time::{Duration, SystemTime},
 };
-use tracing::trace;
+use tracing::{debug, trace};
 
 use super::RepositoryError;
 
@@ -36,6 +36,7 @@ pub trait ArpLogRepository: Clone + std::marker::Send + std::marker::Sync + 'sta
     /// 全てのArpLogを取得し、同時にdurationを超過したものは削除する
     fn getall_autoclear(&self, duration: Duration) -> Result<Vec<ArpLog>, RepositoryError>;
     fn getall_without_autoclear(&self) -> Result<Vec<ArpLog>, RepositoryError>;
+    fn remove(&self, address: &MacAddr) -> Result<(), RepositoryError>;
     fn clear(&self) -> Result<(), RepositoryError>;
 }
 
@@ -183,6 +184,16 @@ impl ArpLogRepository for ArpLogRepositoryForMemory {
     fn clear(&self) -> Result<(), RepositoryError> {
         if let Ok(mut store) = self.store.write() {
             store.clear();
+            Ok(())
+        } else {
+            Err(RepositoryError::SyncFailed)
+        }
+    }
+    
+    fn remove(&self, address:&MacAddr) -> Result<(), RepositoryError> {
+        debug!("Removing ArpLog: {}", address);
+        if let Ok(mut store) = self.store.write() {
+            store.remove(address);
             Ok(())
         } else {
             Err(RepositoryError::SyncFailed)

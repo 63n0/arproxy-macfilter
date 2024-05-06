@@ -245,6 +245,9 @@ where
     }
 
     pub fn send_spoofing_frame(&self, arplog: ArpLog) {
+        if self.allowedmac_repo.contains(&arplog.sender_mac).unwrap_or(false) {
+            self.arplog_repo.remove(&arplog.sender_mac).unwrap_or(())
+        }
         let (mut tx, _rx) = match pnet::datalink::channel(&self.interface, Default::default()) {
             Ok(Channel::Ethernet(tx, rx)) => (tx, rx),
             Ok(_) => panic!("Unknown channel type"),
