@@ -189,8 +189,8 @@ impl ArpLogRepository for ArpLogRepositoryForMemory {
             Err(RepositoryError::SyncFailed)
         }
     }
-    
-    fn remove(&self, address:&MacAddr) -> Result<(), RepositoryError> {
+
+    fn remove(&self, address: &MacAddr) -> Result<(), RepositoryError> {
         debug!("Removing ArpLog: {}", address);
         if let Ok(mut store) = self.store.write() {
             store.remove(address);
