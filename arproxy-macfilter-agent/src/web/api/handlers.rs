@@ -1,19 +1,43 @@
 use std::{str::FromStr, sync::Arc};
 
-use arproxy_macfilter_agent::repositories::allowed_mac::AllowedMacRepository;
+use crate::repositories::allowed_mac::AllowedMacRepository;
 use axum::{
-    http::StatusCode,
-    response::{IntoResponse, Result},
-    Extension, Json,
+    extract::{FromRequest, FromRequestParts, Request}, http::StatusCode, response::{IntoResponse, Result}, BoxError, Extension, Json
 };
 use pnet::util::MacAddr;
+use serde::de::DeserializeOwned;
 use tracing::debug;
+use validator::Validate;
 
 use super::schema::{AllowedMacDeleteSchema, AllowedMacPostResponseSchema, AllowedMacPostSchema};
 
+
+#[derive(Debug)]
+pub struct ValidatedJson<T>(T);
+
+#[axum::async_trait]
+impl<T, S> FromRequest<S> for ValidatedJson<T>
+where   
+    T: DeserializeOwned + Validate,
+    S: Send + Sync,
+{
+    type Rejection = (StatusCode, String);
+
+    async fn from_request(req:Request, state: &S) ->  Result<Self, Self::Rejection>{
+        let Json(value) = Json::<T>::from_request(req, state).await
+            .map_err(|_| {
+                (StatusCode::BAD_REQUEST, "Json parse error.".to_string())
+            })?;
+        value.validate().map_err(|_| {
+            (StatusCode::BAD_REQUEST, "Invalid schema".to_string())
+        })?;
+        Ok(ValidatedJson(value))
+    }
+}
+
 pub async fn add_allowedmac<M: AllowedMacRepository>(
     Extension(allowedmac_repo): Extension<Arc<M>>,
-    Json(payload): Json<AllowedMacPostSchema>,
+    ValidatedJson(payload): ValidatedJson<AllowedMacPostSchema>,
 ) -> Result<impl IntoResponse, StatusCode> {
     debug!("Adding MAC addres: {:?}", payload);
     let addr = MacAddr::from_str(&payload.mac_address).unwrap();
@@ -39,7 +63,7 @@ pub async fn all_allowedmac<M: AllowedMacRepository>(
 
 pub async fn delete_allowedmac<M: AllowedMacRepository>(
     Extension(allowedmac_repo): Extension<Arc<M>>,
-    Json(payload): Json<AllowedMacDeleteSchema>,
+    ValidatedJson(payload): ValidatedJson<AllowedMacDeleteSchema>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let addr = MacAddr::from_str(&payload.mac_address).unwrap();
     let result = allowedmac_repo.remove(&addr);

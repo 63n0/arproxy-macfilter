@@ -120,7 +120,7 @@ where
                 last_seen: SystemTime::now(),
             };
             trace!("ArpRequestReceived: {:?}", arplog);
-            let proxy_config = self.config_repo.get_config().arp_proxy_config;
+            let proxy_config = self.config_repo.get_config().arp_proxy;
             if proxy_config.proxy_allowed_macs
                 || !self.allowedmac_repo.contains(&arplog.sender_mac).unwrap()
             {
@@ -173,14 +173,14 @@ where
         let arplog_life = Duration::from_secs(
             self.config_repo
                 .get_config()
-                .arp_proxy_config
+                .arp_proxy
                 .arp_reply_duration
                 .into(),
         );
         let interval_secs = self
             .config_repo
             .get_config()
-            .arp_proxy_config
+            .arp_proxy
             .arp_reply_interval;
         let mut interval = tokio::time::interval(Duration::from_secs(interval_secs.into()));
         loop {
