@@ -1,4 +1,4 @@
-use std::thread;
+use std::{sync::Arc, thread, time::Duration};
 
 mod config;
 mod networks;
@@ -12,11 +12,16 @@ use tracing::{debug, info, trace};
 async fn main() {
     tracing_subscriber::fmt::init();
     let config_str = r#"{
-        "interface":"veth2",
-        "arp_proxy_config": {
+        "interface":"lo",
+        "arp_proxy": {
             "proxy_allowed_macs": false,
             "arp_reply_interval": 1,
             "arp_reply_duration": 10
+        }, 
+        "administration": {
+            "enable_api": true,
+            "listen_address": "127.0.0.1",
+            "listen_port": 3000
         }
     }
     "#;
@@ -47,30 +52,21 @@ async fn main() {
         packet_sender.clone(),
     );
 
-    let t = thread::spawn(move || {
-        packet_listener.listen()
-        // for i in 0..200 {
-        //     trace!("Packet Received: {}", i);
-        //     match rx.next() {
-        //         Ok(pkt) => packet_handler.handle_frame(pkt).unwrap(),
-        //         Err(e) => panic!("Failed"),
-        //     };
-        // }
+    let thread1 = thread::spawn(move || {
+        packet_listener.listen();
     });
-    debug!("Listening Handler Spawned");
-    packet_sender.send_loop().await;
+    let task1 = packet_sender.send_loop();
 
-    t.join();
-
-    for arplog in arplog_repo.getall_without_autoclear().unwrap() {
-        info!("{:?}", arplog);
+    let admin_config = config_repo.get_config().administration;
+    if admin_config.enable_api {
+        let app = web::route::create_router(
+            Arc::new(config_repo.clone()), 
+            Arc::new(allowedmac_repo.clone()), 
+            Arc::new(arplog_repo.clone())
+        );
+        let listener = tokio::net::TcpListener::bind((admin_config.listen_address, admin_config.listen_port)).await
+            .expect(format!("Failed to bind TCP listener to address {} and port {}", admin_config.listen_address, admin_config.listen_port).as_str());
+        axum::serve(listener, app).await.unwrap();
     }
-
-    // allowed_mac_repo
-    //     .put(MacAddr::from_str("02:00:00:00:00:01").unwrap())
-    //     .unwrap();
-    // allowed_mac_repo.put(MacAddr::zero()).unwrap();
-    // allowed_mac_repo.put(MacAddr::broadcast()).unwrap();
-    // allowed_mac_repo.put(MacAddr::broadcast()).unwrap();
-    // println!("{:?}", allowed_mac_repo.getall())
+    task1.await;
 }

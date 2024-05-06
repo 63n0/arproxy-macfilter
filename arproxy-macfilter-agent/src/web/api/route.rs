@@ -5,7 +5,7 @@ use axum::{
     Extension, Router,
 };
 
-use arproxy_macfilter_agent::repositories::{
+use crate::repositories::{
     allowed_mac::AllowedMacRepository, arplog::ArpLogRepository, config::ConfigRepository,
 };
 
@@ -41,7 +41,7 @@ where
 mod test {
     use std::{str::FromStr, sync::Arc};
 
-    use arproxy_macfilter_agent::repositories::allowed_mac::{
+    use crate::repositories::allowed_mac::{
         AllowedMacRepository, AllowedMacRepositoryForMemory,
     };
     use axum::{
@@ -168,6 +168,35 @@ mod test {
         assert_eq!(maddrs.len(), 2);
         assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 1)));
         assert!(!maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 2)));
+        assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 3)));
+    }
+
+    #[tracing_test::traced_test]
+    #[tokio::test]
+    async fn invalid_input_allowedmac() {
+        let repo = create_dummy_allowedmac_repo();
+        let app = create_allowedmac_router(Arc::new(repo.clone()));
+        // 無効な入力：非JSON, 不正なMACアドレス
+        let req_bodys = vec![
+            "{ maddr: true }".to_string().into_bytes(),
+            r#"{ "mac_address": "hello, world" }"#.to_string().into_bytes(),
+        ] ;
+        for req_body in req_bodys.iter() {
+            // ステータスコードが正当か
+            let (status, _) = request_oneshot_json(app.clone(), Method::DELETE, "/delete", req_body.clone()).await;
+            assert_eq!(status, StatusCode::BAD_REQUEST);    
+        }
+        for req_body in req_bodys {
+            // ステータスコードが正当か
+            let (status, _) = request_oneshot_json(app.clone(), Method::POST, "/add", req_body.clone()).await;
+            assert_eq!(status, StatusCode::BAD_REQUEST);
+        }
+        
+        // レポジトリに変化がないか
+        let maddrs = repo.getall().unwrap();
+        assert_eq!(maddrs.len(), 3);
+        assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 1)));
+        assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 2)));
         assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 3)));
     }
 }

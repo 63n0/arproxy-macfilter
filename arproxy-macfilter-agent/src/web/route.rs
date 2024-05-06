@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use arproxy_macfilter_agent::repositories::{
+use crate::repositories::{
     allowed_mac::AllowedMacRepository, arplog::ArpLogRepository, config::ConfigRepository,
 };
 use axum::Router;
