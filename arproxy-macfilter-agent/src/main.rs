@@ -5,27 +5,15 @@ mod networks;
 mod repositories;
 mod web;
 
+use clap::Parser;
 use repositories::config::ConfigRepository;
 use tracing::trace;
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
-    let config_str = r#"{
-        "interface":"lo",
-        "arp_proxy": {
-            "proxy_allowed_macs": false,
-            "arp_reply_interval": 1,
-            "arp_reply_duration": 10
-        }, 
-        "administration": {
-            "enable_api": true,
-            "listen_address": "127.0.0.1",
-            "listen_port": 3000
-        }
-    }
-    "#;
-    let config: config::Config = serde_json::from_str(&config_str).unwrap();
+    let args = config::Args::parse();
+    let config: config::Config = config::load_config(args.config_path).expect("Failed to load configuration");
     trace!("{:?}", config);
     let allowedmac_repo = repositories::allowed_mac::AllowedMacRepositoryForMemory::new();
     let arplog_repo = repositories::arplog::ArpLogRepositoryForMemory::new();
