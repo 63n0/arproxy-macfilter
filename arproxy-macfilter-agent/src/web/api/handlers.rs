@@ -2,7 +2,9 @@ use std::{str::FromStr, sync::Arc};
 
 use crate::repositories::allowed_mac::AllowedMacRepository;
 use axum::{
-    extract::{FromRequest, FromRequestParts, Request}, http::StatusCode, response::{IntoResponse, Result}, BoxError, Extension, Json
+    extract::{FromRequest, Request},
+    http::StatusCode,
+    response::{IntoResponse, Result}, Extension, Json,
 };
 use pnet::util::MacAddr;
 use serde::de::DeserializeOwned;
@@ -11,26 +13,24 @@ use validator::Validate;
 
 use super::schema::{AllowedMacDeleteSchema, AllowedMacPostResponseSchema, AllowedMacPostSchema};
 
-
 #[derive(Debug)]
 pub struct ValidatedJson<T>(T);
 
 #[axum::async_trait]
 impl<T, S> FromRequest<S> for ValidatedJson<T>
-where   
+where
     T: DeserializeOwned + Validate,
     S: Send + Sync,
 {
     type Rejection = (StatusCode, String);
 
-    async fn from_request(req:Request, state: &S) ->  Result<Self, Self::Rejection>{
-        let Json(value) = Json::<T>::from_request(req, state).await
-            .map_err(|_| {
-                (StatusCode::BAD_REQUEST, "Json parse error.".to_string())
-            })?;
-        value.validate().map_err(|_| {
-            (StatusCode::BAD_REQUEST, "Invalid schema".to_string())
-        })?;
+    async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
+        let Json(value) = Json::<T>::from_request(req, state)
+            .await
+            .map_err(|_| (StatusCode::BAD_REQUEST, "Json parse error.".to_string()))?;
+        value
+            .validate()
+            .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid schema".to_string()))?;
         Ok(ValidatedJson(value))
     }
 }

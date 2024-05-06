@@ -41,9 +41,7 @@ where
 mod test {
     use std::{str::FromStr, sync::Arc};
 
-    use crate::repositories::allowed_mac::{
-        AllowedMacRepository, AllowedMacRepositoryForMemory,
-    };
+    use crate::repositories::allowed_mac::{AllowedMacRepository, AllowedMacRepositoryForMemory};
     use axum::{
         body::{Body, Bytes},
         http::{self, Method, Request, StatusCode},
@@ -180,18 +178,21 @@ mod test {
         let req_bodys = vec![
             "{ maddr: true }".to_string().into_bytes(),
             r#"{ "mac_address": "hello, world" }"#.to_string().into_bytes(),
-        ] ;
+        ];
         for req_body in req_bodys.iter() {
             // ステータスコードが正当か
-            let (status, _) = request_oneshot_json(app.clone(), Method::DELETE, "/delete", req_body.clone()).await;
-            assert_eq!(status, StatusCode::BAD_REQUEST);    
+            let (status, _) =
+                request_oneshot_json(app.clone(), Method::DELETE, "/delete", req_body.clone())
+                    .await;
+            assert_eq!(status, StatusCode::BAD_REQUEST);
         }
         for req_body in req_bodys {
             // ステータスコードが正当か
-            let (status, _) = request_oneshot_json(app.clone(), Method::POST, "/add", req_body.clone()).await;
+            let (status, _) =
+                request_oneshot_json(app.clone(), Method::POST, "/add", req_body.clone()).await;
             assert_eq!(status, StatusCode::BAD_REQUEST);
         }
-        
+
         // レポジトリに変化がないか
         let maddrs = repo.getall().unwrap();
         assert_eq!(maddrs.len(), 3);
