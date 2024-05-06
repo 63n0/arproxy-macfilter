@@ -1,7 +1,7 @@
 use std::{fs::File, io::BufReader, net::Ipv4Addr};
 
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+
 
 /// 設定ファイル/設定情報の構造体
 #[derive(Debug, Clone, Serialize, Deserialize)]

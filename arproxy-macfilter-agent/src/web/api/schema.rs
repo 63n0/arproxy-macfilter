@@ -21,7 +21,6 @@ pub(super) type AllowedMacPostResponseSchema = AllowedMacSchema;
 pub(super) type AllowedMacPostSchema = AllowedMacSchema;
 pub(super) type AllowedMacDeleteSchema = AllowedMacSchema;
 
-
 #[cfg(test)]
 mod test {
     use std::str::FromStr;
@@ -68,7 +67,9 @@ mod test {
             mac_address: "hello, world".to_string(),
         });
         for sample in samples.iter() {
-            sample.validate().expect_err("Vaildation for bad input was suceed");
+            sample
+                .validate()
+                .expect_err("Vaildation for bad input was suceed");
         }
     }
 }

@@ -177,11 +177,7 @@ where
                 .arp_reply_duration
                 .into(),
         );
-        let interval_secs = self
-            .config_repo
-            .get_config()
-            .arp_proxy
-            .arp_reply_interval;
+        let interval_secs = self.config_repo.get_config().arp_proxy.arp_reply_interval;
         let mut interval = tokio::time::interval(Duration::from_secs(interval_secs.into()));
         loop {
             let time = SystemTime::now();

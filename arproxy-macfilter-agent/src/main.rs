@@ -1,12 +1,12 @@
-use std::{sync::Arc, thread, time::Duration};
+use std::{sync::Arc, thread};
 
 mod config;
 mod networks;
 mod repositories;
 mod web;
 
-use repositories::{arplog::ArpLogRepository, config::ConfigRepository};
-use tracing::{debug, info, trace};
+use repositories::{config::ConfigRepository};
+use tracing::{trace};
 
 #[tokio::main]
 async fn main() {
@@ -60,13 +60,22 @@ async fn main() {
     let admin_config = config_repo.get_config().administration;
     if admin_config.enable_api {
         let app = web::route::create_router(
-            Arc::new(config_repo.clone()), 
-            Arc::new(allowedmac_repo.clone()), 
-            Arc::new(arplog_repo.clone())
+            Arc::new(config_repo.clone()),
+            Arc::new(allowedmac_repo.clone()),
+            Arc::new(arplog_repo.clone()),
         );
-        let listener = tokio::net::TcpListener::bind((admin_config.listen_address, admin_config.listen_port)).await
-            .expect(format!("Failed to bind TCP listener to address {} and port {}", admin_config.listen_address, admin_config.listen_port).as_str());
+        let listener =
+            tokio::net::TcpListener::bind((admin_config.listen_address, admin_config.listen_port))
+                .await
+                .expect(
+                    format!(
+                        "Failed to bind TCP listener to address {} and port {}",
+                        admin_config.listen_address, admin_config.listen_port
+                    )
+                    .as_str(),
+                );
         axum::serve(listener, app).await.unwrap();
     }
     task1.await;
+    thread1.join().unwrap();
 }
