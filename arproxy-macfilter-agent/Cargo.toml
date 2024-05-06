@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.82"
 axum = "0.7.5"
+clap = { version = "4.5.4", features = ["derive"] }
 http-body = "1.0.0"
 http-body-util = "0.1.1"
 mime = "0.3.17"
