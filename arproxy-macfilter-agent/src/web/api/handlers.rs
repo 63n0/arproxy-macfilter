@@ -4,7 +4,8 @@ use crate::repositories::allowed_mac::AllowedMacRepository;
 use axum::{
     extract::{FromRequest, Request},
     http::StatusCode,
-    response::{IntoResponse, Result}, Extension, Json,
+    response::{IntoResponse, Result},
+    Extension, Json,
 };
 use pnet::util::MacAddr;
 use serde::de::DeserializeOwned;

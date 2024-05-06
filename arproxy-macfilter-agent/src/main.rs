@@ -5,8 +5,8 @@ mod networks;
 mod repositories;
 mod web;
 
-use repositories::{config::ConfigRepository};
-use tracing::{trace};
+use repositories::config::ConfigRepository;
+use tracing::trace;
 
 #[tokio::main]
 async fn main() {
