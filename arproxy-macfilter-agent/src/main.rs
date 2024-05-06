@@ -1,4 +1,6 @@
-use std::{env, sync::Arc, thread, time::Duration};
+use std::{
+    env, fs::File, io::BufReader, path::PathBuf, str::FromStr, sync::Arc, thread, time::Duration,
+};
 
 mod config;
 mod networks;
@@ -7,7 +9,8 @@ mod web;
 
 use clap::Parser;
 use config::Args;
-use repositories::config::ConfigRepository;
+use pnet::util::MacAddr;
+use repositories::{allowed_mac::AllowedMacRepository, config::ConfigRepository};
 use tracing::{debug, error, info, trace, warn};
 
 #[tokio::main]
@@ -32,6 +35,13 @@ async fn main() {
     let allowedmac_repo = repositories::allowed_mac::AllowedMacRepositoryForMemory::new();
     let arplog_repo = repositories::arplog::ArpLogRepositoryForMemory::new();
     let config_repo = repositories::config::ConfigRepositoryForMemory::new(config);
+
+    if let Some(path) = config_repo.get_config().allowed_mac_list {
+        let allowed_macs = load_allowed_macs(&path);
+        for m in allowed_macs {
+            allowedmac_repo.add(m).expect("[Error] SyncErr");
+        }
+    }
 
     // network-related
     let iface_name = config_repo.get_config().interface.clone();
@@ -102,4 +112,17 @@ fn security_checkup(config: &config::Config, args: &Args) {
     } else if !admin_config.listen_address.is_loopback() {
         warn!("Administration api DOES NOT REQUIRE LOGIN, consider using ssh port forwarding.");
     }
+}
+
+fn load_allowed_macs(path: &PathBuf) -> Vec<MacAddr> {
+    let file = File::open(path)
+        .expect(format!("Failed to open allowed mac list file {:?}", path).as_str());
+    let reader = BufReader::new(file);
+    let macs_str: Vec<String> = serde_json::from_reader::<BufReader<File>, Vec<String>>(reader)
+        .expect(format!("Failed to open allowed mac list file {:?}", path).as_str());
+    let macs = macs_str
+        .iter()
+        .map(|mac_str| MacAddr::from_str(&mac_str).expect("Failed to parse mac address"))
+        .collect::<Vec<MacAddr>>();
+    macs
 }

@@ -18,6 +18,7 @@ pub struct Args {
 pub struct Config {
     /// Network interface name
     pub interface: String,
+    pub allowed_mac_list: Option<PathBuf>,
     pub arp_proxy: ArpProxyConfig,
     pub administration: AdministrationConfig,
 }
