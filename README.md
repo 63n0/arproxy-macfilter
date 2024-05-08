@@ -41,7 +41,8 @@ Options:
     }
 }
 ```
-`administration.listen_address`にループバック以外のインターフェイスを設定すると警告が出ます。この警告を無視するにはコマンドライン引数`--insecure`を付けて実行する必要があります。
+`administration.listen_address`にループバック以外のアドレスを設定すると警告が出ます。この警告を無視するにはコマンドライン引数`--insecure`を付けて実行する必要があります。
+`proxy_allowed_macs`パラメータについては未実装です。。。常にfalseを指定してください。
 ### APIによるホワイトリストの操作
 **APIは認証機能を持ちません！**ループバックアドレスでリッスンするか、それも受け入れられない場合は `administration.enable_api` を `false` に設定してください。
 `/api/allowed-mac` に許可されたMACアドレスの追加、取得、削除ができるAPIがあります。
