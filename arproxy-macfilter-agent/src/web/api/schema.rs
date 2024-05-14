@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
 fn validate_mac_address(text: &str) -> Result<(), ValidationError> {
-    match MacAddr::from_str(text){
+    match MacAddr::from_str(text) {
         Ok(_) => Ok(()),
         Err(_) => Err(ValidationError::new("Invalid MAC address")),
     }
