@@ -41,7 +41,7 @@ pub async fn add_allowedmac<M: AllowedMacRepository>(
     ValidatedJson(payload): ValidatedJson<AllowedMacPostSchema>,
 ) -> Result<impl IntoResponse, StatusCode> {
     debug!("Adding MAC addres: {:?}", payload);
-    let addr = MacAddr::from_str(&payload.mac_address).unwrap();
+    let addr = MacAddr::from_str(&payload.mac_address).map_err(|_| StatusCode::BAD_REQUEST)?;
     let result = allowedmac_repo.add(addr);
     debug!("Adding MAC addres: {:?}", result);
     let created_addr = result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -66,7 +66,7 @@ pub async fn delete_allowedmac<M: AllowedMacRepository>(
     Extension(allowedmac_repo): Extension<Arc<M>>,
     ValidatedJson(payload): ValidatedJson<AllowedMacDeleteSchema>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let addr = MacAddr::from_str(&payload.mac_address).unwrap();
+    let addr = MacAddr::from_str(&payload.mac_address).map_err(|_| StatusCode::BAD_REQUEST)?;
     let result = allowedmac_repo.remove(&addr);
     debug!("Deleting allowed mac... {:?}", result);
     result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
