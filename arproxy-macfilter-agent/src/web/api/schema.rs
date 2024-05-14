@@ -1,13 +1,13 @@
-use regex::Regex;
+use std::str::FromStr;
+
+use pnet::util::MacAddr;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
 fn validate_mac_address(text: &str) -> Result<(), ValidationError> {
-    let re = Regex::new(r"^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$").unwrap();
-    if re.is_match(&text) {
-        Ok(())
-    } else {
-        Err(ValidationError::new(&"Invalid MAC address format"))
+    match MacAddr::from_str(text){
+        Ok(_) => Ok(()),
+        Err(_) => Err(ValidationError::new("Invalid MAC address")),
     }
 }
 
