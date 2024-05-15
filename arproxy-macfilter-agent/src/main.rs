@@ -106,13 +106,13 @@ async fn main() {
 /// ConfigとArgsについてのセキュリティチェックを行う
 fn config_security_checkup(config: &config::Config, args: &Args) {
     let admin_config = config.administration.clone();
-    if !admin_config.listen_address.is_loopback()  {
-        if  !args.insecure {
+    if !admin_config.listen_address.is_loopback() {
+        if !args.insecure {
             error!("Non-loopback address {:?} is not accepted as 'administration.listen_address'. Administration api DOES NOT REQUIRE LOGIN, consider using ssh port forwarding. If you will ignore the warning and use a non-loopback address, enable the `--insecure` argument.", admin_config.listen_address);
             panic!("Exitting..");
         } else {
             warn!("Administration api DOES NOT REQUIRE LOGIN, consider using ssh port forwarding.");
-        }   
+        }
     }
 }
 
