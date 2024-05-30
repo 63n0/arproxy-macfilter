@@ -51,7 +51,7 @@ pub async fn add_allowedmac<M: AllowedMacRepository, C: ConfigRepository>(
     let created_addr = result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let nfconfig = config_repo.get_config().nftables;
-    if (nfconfig.enable) {
+    if nfconfig.enable {
         nftutils::add_mac_element(
             nfconfig.family.unwrap(),
             &nfconfig.table_name.unwrap(),

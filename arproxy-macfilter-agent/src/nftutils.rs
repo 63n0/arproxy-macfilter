@@ -6,7 +6,7 @@ use nftables::{
     expr::Expression,
     helper,
     schema::{self, Element, Nftables},
-    types::{self, NfFamily},
+    types::{NfFamily},
 };
 use pnet::util::MacAddr;
 
@@ -30,7 +30,7 @@ pub fn add_mac_element(
 }
 
 pub fn apply_rulesets_from_file(path: &PathBuf) -> Result<(), anyhow::Error> {
-    let mut file = File::open(path)?;
+    let file = File::open(path)?;
     let reader = BufReader::new(file);
     let nftobj: Nftables = serde_json::from_reader(reader)?;
 

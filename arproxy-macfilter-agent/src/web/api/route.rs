@@ -50,7 +50,7 @@ mod test {
         config,
         repositories::{
             allowed_mac::{AllowedMacRepository, AllowedMacRepositoryForMemory},
-            config::{ConfigRepository, ConfigRepositoryForMemory},
+            config::{ConfigRepositoryForMemory},
         },
     };
     use axum::{
@@ -131,7 +131,7 @@ mod test {
     #[tracing_test::traced_test]
     #[tokio::test]
     async fn should_getall_allowedmac() {
-        let (app, config_repo, mac_repo) = create_dummy_app();
+        let (app, _config_repo, _mac_repo) = create_dummy_app();
         // ステータスコード・レスポンスボディが正当か
         let (status, body) = request_oneshot_empty(app, http::Method::GET, "/all").await;
         assert_eq!(status, StatusCode::OK);
@@ -149,7 +149,7 @@ mod test {
     #[tracing_test::traced_test]
     #[tokio::test]
     async fn should_add_allowedmac() {
-        let (app, config_repo, mac_repo) = create_dummy_app();
+        let (app, _config_repo, mac_repo) = create_dummy_app();
         let req_body = AllowedMacPostSchema {
             mac_address: MacAddr::new(2, 0, 0, 0, 0xf, 5).to_string(),
         };
@@ -173,7 +173,7 @@ mod test {
     #[tracing_test::traced_test]
     #[tokio::test]
     async fn should_delete_allowedmac() {
-        let (app, config_repo, mac_repo) = create_dummy_app();
+        let (app, _config_repo, mac_repo) = create_dummy_app();
         let req_body = AllowedMacDeleteSchema {
             mac_address: MacAddr::new(2, 0, 0, 0, 0xf, 2).to_string(),
         };
@@ -192,7 +192,7 @@ mod test {
     #[tracing_test::traced_test]
     #[tokio::test]
     async fn invalid_input_allowedmac() {
-        let (app, config_repo, mac_repo) = create_dummy_app();
+        let (app, _config_repo, mac_repo) = create_dummy_app();
         // 無効な入力：非JSON, 不正なMACアドレス
         let req_bodys = vec![
             "{ maddr: true }".to_string().into_bytes(),

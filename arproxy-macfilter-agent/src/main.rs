@@ -44,7 +44,7 @@ async fn main() {
         let allowed_macs = load_allowed_macs(&path);
         for m in allowed_macs {
             allowedmac_repo.add(m).expect("[Error] SyncErr");
-            if (config_repo.get_config().nftables.enable) {
+            if config_repo.get_config().nftables.enable {
                 let nfcfg = config_repo.get_config().nftables;
                 nftutils::add_mac_element(
                     nfcfg.family.unwrap(),
