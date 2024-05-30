@@ -1,6 +1,9 @@
 use std::{str::FromStr, sync::Arc};
 
-use crate::repositories::allowed_mac::AllowedMacRepository;
+use crate::{
+    nftutils,
+    repositories::{allowed_mac::AllowedMacRepository, config::ConfigRepository},
+};
 use axum::{
     extract::{FromRequest, Request},
     http::StatusCode,
@@ -36,7 +39,8 @@ where
     }
 }
 
-pub async fn add_allowedmac<M: AllowedMacRepository>(
+pub async fn add_allowedmac<M: AllowedMacRepository, C: ConfigRepository>(
+    Extension(config_repo): Extension<Arc<C>>,
     Extension(allowedmac_repo): Extension<Arc<M>>,
     ValidatedJson(payload): ValidatedJson<AllowedMacPostSchema>,
 ) -> Result<impl IntoResponse, StatusCode> {
@@ -45,6 +49,18 @@ pub async fn add_allowedmac<M: AllowedMacRepository>(
     let result = allowedmac_repo.add(addr);
     debug!("Adding MAC addres: {:?}", result);
     let created_addr = result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let nfconfig = config_repo.get_config().nftables;
+    if (nfconfig.enable) {
+        nftutils::add_mac_element(
+            nfconfig.family.unwrap(),
+            &nfconfig.table_name.unwrap(),
+            &nfconfig.set_name.unwrap(),
+            &addr,
+        )
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
     Ok((
         StatusCode::CREATED,
         Json(AllowedMacPostResponseSchema {

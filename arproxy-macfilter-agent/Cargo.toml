@@ -12,6 +12,7 @@ clap = { version = "4.5.4", features = ["derive"] }
 http-body = "1.0.0"
 http-body-util = "0.1.1"
 mime = "0.3.17"
+nftables = "0.4.0"
 pnet = "0.34.0"
 rand = "0.8.5"
 regex = "1.10.4"

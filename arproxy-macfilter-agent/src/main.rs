@@ -4,6 +4,7 @@ use std::{
 
 mod config;
 mod networks;
+mod nftutils;
 mod repositories;
 mod web;
 
@@ -30,6 +31,9 @@ async fn main() {
         config::load_config(&args.config_path).expect("Failed to load configuration");
     config_security_checkup(&config, &args);
     trace!("{:?}", config);
+    if let Some(file) = &config.nftables.ruleset_file {
+        nftutils::apply_rulesets_from_file(file).expect("Failed to load nftables ruleset. Please make sure the path points to a readable JSON format file");
+    }
 
     // repository creation
     let allowedmac_repo = repositories::allowed_mac::AllowedMacRepositoryForMemory::new();
@@ -40,6 +44,16 @@ async fn main() {
         let allowed_macs = load_allowed_macs(&path);
         for m in allowed_macs {
             allowedmac_repo.add(m).expect("[Error] SyncErr");
+            if (config_repo.get_config().nftables.enable) {
+                let nfcfg = config_repo.get_config().nftables;
+                nftutils::add_mac_element(
+                    nfcfg.family.unwrap(),
+                    &nfcfg.table_name.unwrap(),
+                    &nfcfg.set_name.unwrap(),
+                    &m,
+                )
+                .expect("Failed to add netfilter element");
+            }
         }
     }
 

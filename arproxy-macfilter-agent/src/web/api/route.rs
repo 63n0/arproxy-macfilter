@@ -12,7 +12,7 @@ use crate::repositories::{
 use super::handlers;
 
 pub fn create_router<C, M, A>(
-    _config_repo: Arc<C>,
+    config_repo: Arc<C>,
     allowedmac_repo: Arc<M>,
     _arplog_repo: Arc<A>,
 ) -> Router
@@ -21,19 +21,24 @@ where
     M: AllowedMacRepository,
     A: ArpLogRepository,
 {
-    let app = Router::new().nest("/allowed-mac", create_allowedmac_router(allowedmac_repo));
+    let app = Router::new().nest(
+        "/allowed-mac",
+        create_allowedmac_router(config_repo, allowedmac_repo),
+    );
     app
 }
 
-fn create_allowedmac_router<M>(allowedmac_repo: Arc<M>) -> Router
+fn create_allowedmac_router<C, M>(config_repo: Arc<C>, allowedmac_repo: Arc<M>) -> Router
 where
+    C: ConfigRepository,
     M: AllowedMacRepository,
 {
     let app = Router::new()
         .route("/all", get(handlers::all_allowedmac::<M>))
-        .route("/add", post(handlers::add_allowedmac::<M>))
+        .route("/add", post(handlers::add_allowedmac::<M, C>))
         .route("/delete", delete(handlers::delete_allowedmac::<M>))
-        .layer(Extension(allowedmac_repo.clone()));
+        .layer(Extension(allowedmac_repo.clone()))
+        .layer(Extension(config_repo.clone()));
     app
 }
 
@@ -41,7 +46,13 @@ where
 mod test {
     use std::{str::FromStr, sync::Arc};
 
-    use crate::repositories::allowed_mac::{AllowedMacRepository, AllowedMacRepositoryForMemory};
+    use crate::{
+        config,
+        repositories::{
+            allowed_mac::{AllowedMacRepository, AllowedMacRepositoryForMemory},
+            config::{ConfigRepository, ConfigRepositoryForMemory},
+        },
+    };
     use axum::{
         body::{Body, Bytes},
         http::{self, Method, Request, StatusCode},
@@ -65,6 +76,18 @@ mod test {
         repo.add(MacAddr::new(2, 0, 0, 0, 0xf, 2)).expect("SyncErr");
         repo.add(MacAddr::new(2, 0, 0, 0, 0xf, 3)).expect("SyncErr");
         repo
+    }
+
+    fn create_dummy_app() -> (
+        Router,
+        ConfigRepositoryForMemory,
+        AllowedMacRepositoryForMemory,
+    ) {
+        let config_repo = ConfigRepositoryForMemory::new(config::create_dummy());
+        let mac_repo = create_dummy_allowedmac_repo();
+        let app =
+            create_allowedmac_router(Arc::new(config_repo.clone()), Arc::new(mac_repo.clone()));
+        (app, config_repo, mac_repo)
     }
 
     async fn request_oneshot_empty(
@@ -108,8 +131,7 @@ mod test {
     #[tracing_test::traced_test]
     #[tokio::test]
     async fn should_getall_allowedmac() {
-        let repo = create_dummy_allowedmac_repo();
-        let app = create_allowedmac_router(Arc::new(repo));
+        let (app, config_repo, mac_repo) = create_dummy_app();
         // ステータスコード・レスポンスボディが正当か
         let (status, body) = request_oneshot_empty(app, http::Method::GET, "/all").await;
         assert_eq!(status, StatusCode::OK);
@@ -127,8 +149,7 @@ mod test {
     #[tracing_test::traced_test]
     #[tokio::test]
     async fn should_add_allowedmac() {
-        let repo = create_dummy_allowedmac_repo();
-        let app = create_allowedmac_router(Arc::new(repo.clone()));
+        let (app, config_repo, mac_repo) = create_dummy_app();
         let req_body = AllowedMacPostSchema {
             mac_address: MacAddr::new(2, 0, 0, 0, 0xf, 5).to_string(),
         };
@@ -141,7 +162,7 @@ mod test {
         res_body.validate().expect("Unexpected response");
         assert_eq!(res_body, req_body);
         // レポジトリに追加済みか
-        let maddrs = repo.getall().unwrap();
+        let maddrs = mac_repo.getall().unwrap();
         assert_eq!(maddrs.len(), 4);
         assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 1)));
         assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 2)));
@@ -152,8 +173,7 @@ mod test {
     #[tracing_test::traced_test]
     #[tokio::test]
     async fn should_delete_allowedmac() {
-        let repo = create_dummy_allowedmac_repo();
-        let app = create_allowedmac_router(Arc::new(repo.clone()));
+        let (app, config_repo, mac_repo) = create_dummy_app();
         let req_body = AllowedMacDeleteSchema {
             mac_address: MacAddr::new(2, 0, 0, 0, 0xf, 2).to_string(),
         };
@@ -162,7 +182,7 @@ mod test {
         let (status, _) = request_oneshot_json(app, Method::DELETE, "/delete", req_body).await;
         assert_eq!(status, StatusCode::NO_CONTENT);
         // レポジトリから削除されているか
-        let maddrs = repo.getall().unwrap();
+        let maddrs = mac_repo.getall().unwrap();
         assert_eq!(maddrs.len(), 2);
         assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 1)));
         assert!(!maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 2)));
@@ -172,8 +192,7 @@ mod test {
     #[tracing_test::traced_test]
     #[tokio::test]
     async fn invalid_input_allowedmac() {
-        let repo = create_dummy_allowedmac_repo();
-        let app = create_allowedmac_router(Arc::new(repo.clone()));
+        let (app, config_repo, mac_repo) = create_dummy_app();
         // 無効な入力：非JSON, 不正なMACアドレス
         let req_bodys = vec![
             "{ maddr: true }".to_string().into_bytes(),
@@ -194,7 +213,7 @@ mod test {
         }
 
         // レポジトリに変化がないか
-        let maddrs = repo.getall().unwrap();
+        let maddrs = mac_repo.getall().unwrap();
         assert_eq!(maddrs.len(), 3);
         assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 1)));
         assert!(maddrs.contains(&MacAddr::new(2, 0, 0, 0, 0xf, 2)));
